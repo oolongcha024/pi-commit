@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -8,6 +15,59 @@ import { promisify } from "node:util";
 import { GitRepository } from "../src/git.js";
 
 const exec = promisify(execFile);
+
+test("no-sign overrides required signing for one commit without skipping hooks or changing config", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "pi-commit-no-sign-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const git = async (...args: string[]) =>
+    (await exec("git", ["-C", directory, ...args])).stdout;
+  await git("init", "-q");
+  const signer = join(directory, "reject-signing");
+  await writeFile(signer, "#!/bin/sh\ntouch signer-called\nexit 1\n");
+  await chmod(signer, 0o700);
+  for (const [name, value] of Object.entries({
+    "user.email": "test@example.invalid",
+    "user.name": "Test",
+    "commit.gpgsign": "true",
+    "gpg.format": "openpgp",
+    "gpg.program": signer,
+    "core.hooksPath": ".git/hooks",
+  }))
+    await git("config", name, value);
+  const hook = join(directory, ".git/hooks/pre-commit");
+  await writeFile(hook, "#!/bin/sh\ntouch hook-called\n");
+  await chmod(hook, 0o700);
+  await writeFile(join(directory, "file.txt"), "first\n");
+  await git("add", "file.txt");
+  const repository = await GitRepository.open(directory);
+  const snapshot = await repository.snapshot();
+  assert.equal(
+    await repository.commit("fix: signed attempt", snapshot),
+    "failed",
+  );
+  await access(join(directory, "signer-called"));
+  await rm(join(directory, "signer-called"));
+  await rm(join(directory, "hook-called"));
+
+  assert.equal(
+    await repository.commit("fix: unsigned attempt", snapshot, true),
+    "committed",
+  );
+  await assert.rejects(access(join(directory, "signer-called")));
+  await access(join(directory, "hook-called"));
+  assert.doesNotMatch(await git("cat-file", "-p", "HEAD"), /^gpgsig /mu);
+  assert.equal((await git("config", "--get", "commit.gpgsign")).trim(), "true");
+  await writeFile(join(directory, "file.txt"), "second\n");
+  await git("add", "file.txt");
+  assert.equal(
+    await repository.commit(
+      "fix: signing still required",
+      await repository.snapshot(),
+    ),
+    "failed",
+  );
+  await access(join(directory, "signer-called"));
+});
 
 test("Git snapshots protect staged content and HEAD; commit accepts literal text", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "pi-commit-git-"));

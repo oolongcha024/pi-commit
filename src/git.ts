@@ -104,6 +104,7 @@ export class GitRepository {
   async commit(
     message: string,
     expected: GitSnapshot,
+    noSign = false,
   ): Promise<"committed" | "changed" | "failed"> {
     const directory = await mkdtemp(join(tmpdir(), "pi-commit-message-"));
     try {
@@ -113,7 +114,15 @@ export class GitRepository {
       return await new Promise((resolve, reject) => {
         const child = spawn(
           "git",
-          ["-C", this.root, "commit", "--cleanup=verbatim", "-F", path],
+          [
+            "-C",
+            this.root,
+            "commit",
+            "--cleanup=verbatim",
+            ...(noSign ? ["--no-gpg-sign"] : []),
+            "-F",
+            path,
+          ],
           { stdio: "inherit" },
         );
         child.on("error", reject);

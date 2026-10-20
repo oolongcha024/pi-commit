@@ -6,6 +6,7 @@ export interface TerminalHeader {
   model: string;
   language: "zh" | "en";
   emoji: boolean;
+  noSign?: boolean;
   summary: GitSummary;
 }
 
@@ -98,7 +99,7 @@ export class TerminalRenderer {
       gap >= 3
         ? `${brand}${" ".repeat(gap)}${this.paint(branchLabel, "dim")}`
         : brand;
-    const metadata = `${info.model} · ${info.language === "zh" ? "中文" : "English"} · ${info.emoji ? "Emoji" : "无 emoji"}`;
+    const metadata = `${info.model} · ${info.language === "zh" ? "中文" : "English"} · ${info.emoji ? "Emoji" : "无 emoji"}${info.noSign ? " · 不签名" : ""}`;
     const { files, additions, deletions } = info.summary;
     const stats = `${files} 个暂存文件 · +${additions} −${deletions}`;
     return [

@@ -12,6 +12,7 @@ function fixture(
   const output: string[] = [];
   const requests: string[] = [];
   const commits: string[] = [];
+  const signingOverrides: (boolean | undefined)[] = [];
   const statuses: ("committed" | "changed" | "failed")[] = [];
   const agent: CommitAgent = {
     async run(input) {
@@ -63,13 +64,22 @@ function fixture(
         snapshots.push(result);
         return result;
       },
-      async commit(message) {
+      async commit(message, _snapshot, noSign) {
         commits.push(message);
+        signingOverrides.push(noSign);
         return statuses.shift() ?? "committed";
       },
     },
   };
-  return { options, output, requests, commits, statuses, snapshots };
+  return {
+    options,
+    output,
+    requests,
+    commits,
+    statuses,
+    snapshots,
+    signingOverrides,
+  };
 }
 
 const draft = { type: "fix", description: "restore state" };
@@ -192,4 +202,12 @@ test("cancellation during Git stops the loop instead of asking to retry", async 
   };
   await assert.rejects(runCommitLoop(f.options), { name: "AbortError" });
   assert.ok(!f.output.includes("提交完成。"));
+});
+
+test("no-sign reaches Git on the initial attempt and on retries", async () => {
+  const f = fixture([accepted], ["y", "y"]);
+  f.options.noSign = true;
+  f.statuses.push("failed", "committed");
+  assert.equal(await runCommitLoop(f.options), 0);
+  assert.deepEqual(f.signingOverrides, [true, true]);
 });

@@ -24,6 +24,7 @@ export interface LoopOptions {
   context: string;
   model: string;
   language: "zh" | "en";
+  noSign?: boolean;
   signal?: AbortSignal;
 }
 
@@ -59,6 +60,7 @@ export async function runCommitLoop(options: LoopOptions): Promise<number> {
           model: options.model,
           language: options.language,
           emoji: options.emoji,
+          noSign: options.noSign,
           summary: await git.summary(),
         });
         shownSnapshot = snapshot;
@@ -184,7 +186,7 @@ export async function runCommitLoop(options: LoopOptions): Promise<number> {
       const message = formatMessage(draft, options.emoji);
       const snapshot = expected;
       const status = await terminal.withExternalCommand(() =>
-        git.commit(message, snapshot),
+        git.commit(message, snapshot, options.noSign),
       );
       signal?.throwIfAborted();
       if (status === "committed") {
@@ -193,7 +195,7 @@ export async function runCommitLoop(options: LoopOptions): Promise<number> {
       }
       if (status === "failed") {
         terminal.show(
-          "Git 提交失败，草稿已保留。修正 hook 问题后可以重试。",
+          "Git 提交失败，草稿已保留。请检查上方 Git 错误后重试。",
           "warning",
         );
         commitFailed = true;

@@ -28,6 +28,7 @@ test("help works outside Git; empty index exits before config or model initializ
     options,
   );
   assert.match(help.stdout, /Usage: pi-commit/);
+  assert.match(help.stdout, /--no-sign/);
   await assert.rejects(
     exec(process.execPath, ["--import", tsx, cli], options),
     /不在 Git/,
@@ -35,7 +36,7 @@ test("help works outside Git; empty index exits before config or model initializ
   await exec("git", ["init", "-q", directory]);
   const empty = await exec(
     process.execPath,
-    ["--import", tsx, cli, "--model", "missing/model"],
+    ["--import", tsx, cli, "--model", "missing/model", "--no-sign"],
     options,
   );
   assert.match(empty.stdout, /没有 staged 变更/);

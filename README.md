@@ -29,6 +29,14 @@ git add <paths>
 pi-commit --language zh --emoji "主要解决重连后的状态丢失"
 ```
 
+仅本次跳过提交签名：
+
+```sh
+pi-commit --language zh --emoji --no-sign
+```
+
+`--no-sign` 覆盖 Git 的签名配置，不修改配置文件，也不跳过 Git hooks；不传时遵循 Git 原有签名配置。
+
 生成草稿后，输入修改意见继续改稿，或选择：
 
 | 输入 | 操作 |
@@ -59,6 +67,7 @@ export EDITOR='code --wait'
 | --- | --- |
 | `--language <zh\|en>` | 消息语言，默认 `en` |
 | `--emoji` / `--no-emoji` | 启用或关闭 emoji，默认关闭 |
+| `--no-sign` | 本次提交不签名，覆盖 Git 签名配置 |
 | `--model <provider/model>` | 覆盖本次使用的模型 |
 | `--agent-dir <path>` | 指定 pi 配置目录 |
 | `-h, --help` | 查看帮助 |

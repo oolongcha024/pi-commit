@@ -14,6 +14,7 @@ Options:
   --language <zh|en>       消息语言（默认 en，可通过个人配置修改）
   --emoji                 根据 type 自动添加 emoji
   --no-emoji              本次关闭 emoji
+  --no-sign               本次提交不签名，覆盖 Git 签名配置
   --model <provider/model> 本次使用的 pi 模型
   --agent-dir <path>      pi 配置目录（默认遵循 PI_CODING_AGENT_DIR）
   --help, -h              显示帮助
@@ -29,6 +30,7 @@ async function main(): Promise<number> {
       language: { type: "string" },
       emoji: { type: "boolean" },
       "no-emoji": { type: "boolean" },
+      "no-sign": { type: "boolean" },
       model: { type: "string" },
       "agent-dir": { type: "string" },
       help: { type: "boolean", short: "h" },
@@ -132,6 +134,7 @@ async function main(): Promise<number> {
       model: modelId,
       language,
       context: positionals.join(" "),
+      noSign: values["no-sign"],
       signal: controller.signal,
     });
   } catch (error) {

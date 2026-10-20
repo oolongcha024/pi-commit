@@ -101,6 +101,22 @@ export function createTerminal(
         if (controller.signal.aborted) output.write("\n");
       }
     },
+    async withExternalCommand(operation) {
+      stopStatus();
+      controller.signal.throwIfAborted();
+      const wasRaw = input.isRaw;
+      readline.pause();
+      input.setRawMode?.(false);
+      if (dynamic) output.write("\u001b[?25h");
+      try {
+        const result = await operation();
+        controller.signal.throwIfAborted();
+        return result;
+      } finally {
+        input.setRawMode?.(wasRaw);
+        readline.resume();
+      }
+    },
     async edit(message) {
       stopStatus();
       const editor = process.env.VISUAL?.trim() || process.env.EDITOR?.trim();
@@ -113,29 +129,26 @@ export function createTerminal(
       }
       const directory = await mkdtemp(join(tmpdir(), "pi-commit-"));
       const path = join(directory, "COMMIT_EDITMSG");
-      const wasRaw = input.isRaw;
       try {
         await writeFile(path, `${message}\n`, { mode: 0o600 });
-        readline.pause();
-        input.setRawMode?.(false);
-        const code = await new Promise<number | null>((resolve, reject) => {
-          const child = spawn(
-            "/bin/sh",
-            ["-c", `${editor} "$1"`, "pi-commit-editor", path],
-            { stdio: "inherit" },
-          );
-          child.on("error", reject);
-          child.on("close", resolve);
-        });
-        controller.signal.throwIfAborted();
+        const code = await terminal.withExternalCommand(
+          () =>
+            new Promise<number | null>((resolve, reject) => {
+              const child = spawn(
+                "/bin/sh",
+                ["-c", `${editor} "$1"`, "pi-commit-editor", path],
+                { stdio: "inherit" },
+              );
+              child.on("error", reject);
+              child.on("close", resolve);
+            }),
+        );
         if (code !== 0) {
           terminal.show("编辑器退出失败，保留上一版草稿。", "warning");
           return undefined;
         }
         return await readFile(path, "utf8");
       } finally {
-        input.setRawMode?.(wasRaw);
-        readline.resume();
         await rm(directory, { recursive: true, force: true });
       }
     },

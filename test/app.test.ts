@@ -30,6 +30,7 @@ function fixture(
       output.push(text);
     },
     status: () => () => {},
+    withExternalCommand: async (operation) => operation(),
     async ask() {
       const input = inputs.shift();
       assert.notEqual(input, undefined, "Unexpected user prompt");
@@ -179,4 +180,16 @@ test("empty input neither submits nor redraws the draft", async () => {
   assert.equal(await runCommitLoop(f.options), 0);
   assert.equal(displays, 1);
   assert.deepEqual(f.commits, []);
+});
+
+test("cancellation during Git stops the loop instead of asking to retry", async () => {
+  const f = fixture([accepted], ["y"]);
+  const controller = new AbortController();
+  f.options.signal = controller.signal;
+  f.options.git.commit = async () => {
+    controller.abort();
+    return "failed";
+  };
+  await assert.rejects(runCommitLoop(f.options), { name: "AbortError" });
+  assert.ok(!f.output.includes("提交完成。"));
 });

@@ -1,4 +1,7 @@
 import { execFile, spawn } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
@@ -102,21 +105,24 @@ export class GitRepository {
     message: string,
     expected: GitSnapshot,
   ): Promise<"committed" | "changed" | "failed"> {
-    if (!(await this.matches(expected))) return "changed";
-    return new Promise((resolve, reject) => {
-      const child = spawn(
-        "git",
-        ["-C", this.root, "commit", "--cleanup=verbatim", "-F", "-"],
-        {
-          stdio: ["pipe", "inherit", "inherit"],
-        },
-      );
-      child.on("error", reject);
-      child.on("close", (code) => resolve(code === 0 ? "committed" : "failed"));
-      child.stdin.on("error", (error: NodeJS.ErrnoException) => {
-        if (error.code !== "EPIPE") reject(error);
+    const directory = await mkdtemp(join(tmpdir(), "pi-commit-message-"));
+    try {
+      const path = join(directory, "COMMIT_EDITMSG");
+      await writeFile(path, `${message}\n`, { mode: 0o600, flag: "wx" });
+      if (!(await this.matches(expected))) return "changed";
+      return await new Promise((resolve, reject) => {
+        const child = spawn(
+          "git",
+          ["-C", this.root, "commit", "--cleanup=verbatim", "-F", path],
+          { stdio: "inherit" },
+        );
+        child.on("error", reject);
+        child.on("close", (code) =>
+          resolve(code === 0 ? "committed" : "failed"),
+        );
       });
-      child.stdin.end(`${message}\n`);
-    });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
 }

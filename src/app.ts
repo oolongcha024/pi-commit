@@ -8,6 +8,7 @@ export interface Terminal {
   header(info: TerminalHeader): void;
   draft(message: string): void;
   status(message: string): () => void;
+  withExternalCommand<T>(operation: () => Promise<T>): Promise<T>;
   ask(prompt: string, actions?: TerminalAction[]): Promise<string>;
   edit(message: string): Promise<string | undefined>;
 }
@@ -180,10 +181,12 @@ export async function runCommitLoop(options: LoopOptions): Promise<number> {
     }
     if (command === "y") {
       terminal.show("正在检查并提交，运行 Git hooks…", "info");
-      const status = await git.commit(
-        formatMessage(draft, options.emoji),
-        expected,
+      const message = formatMessage(draft, options.emoji);
+      const snapshot = expected;
+      const status = await terminal.withExternalCommand(() =>
+        git.commit(message, snapshot),
       );
+      signal?.throwIfAborted();
       if (status === "committed") {
         terminal.show("提交完成。", "success");
         return 0;

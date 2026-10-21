@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from "node:util";
 import stringWidth from "string-width";
 import { TerminalRenderer } from "../src/ui.js";
 
-test("draft rules touch the message while its internal spacing and content stay intact", () => {
+test("draft has no frame or outer indentation and preserves message content", () => {
   const view = new TerminalRenderer({
     columns: 80,
     color: true,
@@ -12,18 +12,9 @@ test("draft rules touch the message while its internal spacing and content stay 
   });
   const message =
     "🐛 fix(auth): 修复重连后的登录状态丢失\n\n- 重连成功后恢复会话状态\n- 补充状态恢复的回归测试";
-  const lines = stripVTControlCharacters(view.draft(message)).split("\n");
-  assert.match(lines[1] ?? "", /提交消息/);
-  assert.equal(lines[2], `  ${message.split("\n")[0]}`);
-  assert.equal(lines.at(-3), "  - 补充状态恢复的回归测试");
-  assert.match(lines.at(-2) ?? "", /^ {2}─+$/u);
-  assert.equal(
-    lines
-      .slice(2, -2)
-      .map((line) => (line.startsWith("  ") ? line.slice(2) : line))
-      .join("\n"),
-    message,
-  );
+  const text = stripVTControlCharacters(view.draft(message));
+  assert.equal(text, `${message}\n\n`);
+  assert.doesNotMatch(text, /提交消息|─/u);
 });
 
 test("narrow headers, dividers and actions fit terminal cell width with CJK and emoji", () => {
@@ -47,9 +38,9 @@ test("narrow headers, dividers and actions fit terminal cell width with CJK and 
     ]);
   for (const line of output.split("\n"))
     assert.ok(stringWidth(line) <= 32, line);
-  assert.ok(stringWidth(view.rule("提交消息")) <= 28);
+  assert.ok(stringWidth(view.rule("提交消息")) <= 32);
   assert.ok(
-    stringWidth(view.fit("👨‍👩‍👧‍👦 测试一个非常非常长的终端状态消息")) <= 28,
+    stringWidth(view.fit("👨‍👩‍👧‍👦 测试一个非常非常长的终端状态消息")) <= 32,
   );
   assert.doesNotMatch(
     view.fit("👨‍👩‍👧‍👦 测试一个非常非常长的终端状态消息"),
@@ -66,7 +57,8 @@ test("plain output omits ANSI styling and retains real message content", () => {
   const text =
     view.draft("fix: handle reconnect") +
     view.notice("提交完成。", "success") +
-    view.actions([{ key: "y", label: "提交" }]);
+    view.actions([{ key: "y", label: "提交" }]) +
+    view.section("start");
   assert.equal(stripVTControlCharacters(text), text);
   assert.match(text, /fix: handle reconnect/);
   assert.match(text, /---/);
@@ -80,7 +72,7 @@ test("loading frames and input prompts share plain and colored rendering", () =>
     unicode: false,
   });
   assert.match(plain.status("Generating", 2300), /Generating 2s/u);
-  assert.equal(plain.prompt(), "  > ");
+  assert.equal(plain.prompt(), "> ");
   assert.equal(
     stripVTControlCharacters(plain.status("Generating")),
     plain.status("Generating"),
@@ -94,5 +86,5 @@ test("loading frames and input prompts share plain and colored rendering", () =>
   assert.ok(stringWidth(status) <= 32);
   assert.notEqual(status, stripVTControlCharacters(status));
   assert.notEqual(color.status("生成中", 0), color.status("生成中", 90));
-  assert.equal(stripVTControlCharacters(color.prompt()), "  › ");
+  assert.equal(stripVTControlCharacters(color.prompt()), "› ");
 });

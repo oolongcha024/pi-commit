@@ -2,7 +2,12 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clearLine, moveCursor } from "node:readline";
+import {
+  clearLine,
+  clearScreenDown,
+  cursorTo,
+  moveCursor,
+} from "node:readline";
 import { createInterface } from "node:readline/promises";
 import stringWidth from "string-width";
 import { type Terminal, TerminalRenderer } from "./ui.js";
@@ -46,6 +51,10 @@ export function createTerminal(
       stopStatus();
       output.write(view().draft(message));
     },
+    section(edge) {
+      stopStatus();
+      output.write(view().section(edge));
+    },
     status(message) {
       stopStatus();
       if (!dynamic) {
@@ -78,38 +87,54 @@ export function createTerminal(
     async ask(hint, actions) {
       stopStatus();
       controller.signal.throwIfAborted();
-      if (actions) output.write(`${view().actions(actions)}\n`);
-      if (!dynamic) output.write(`${view().notice(hint)}\n`);
+      if (!dynamic) {
+        output.write(`${view().notice(hint)}\n`);
+        if (actions) output.write(`${view().actions(actions)}\n`);
+      }
       const prompt = view().prompt();
       const question = readline.question(prompt, { signal: controller.signal });
       const clearHint = () => {
-        clearLine(output, 1);
+        clearScreenDown(output);
       };
       if (dynamic) {
-        const placeholder = view().fit(hint);
-        output.write(view().placeholder(hint));
+        const placeholder = view().placeholder(hint);
+        output.write(placeholder);
         moveCursor(output, -stringWidth(placeholder), 0);
+        // Draw after question(): readline clears everything below its prompt.
+        // Shortcuts disappear with the placeholder on first input, leaving
+        // readline free to wrap long feedback without overwriting a footer.
+        if (actions?.length) {
+          const footer = view().actions(actions);
+          output.write(`\n${footer}\n`);
+          moveCursor(output, 0, -(footer.split("\n").length + 1));
+          cursorTo(output, stringWidth(prompt));
+        }
         input.once("keypress", clearHint);
+        output.once("resize", clearHint);
       }
       try {
         return await question;
       } finally {
         input.removeListener("keypress", clearHint);
+        output.removeListener("resize", clearHint);
+        if (dynamic) clearScreenDown(output);
         if (controller.signal.aborted) output.write("\n");
       }
     },
-    async withExternalCommand(operation) {
+    async withExternalCommand(operation, section) {
       stopStatus();
       controller.signal.throwIfAborted();
       const wasRaw = input.isRaw;
       readline.pause();
       input.setRawMode?.(false);
       if (dynamic) output.write("\u001b[?25h");
+      if (section === "git") terminal.section("start");
       try {
         const result = await operation();
         controller.signal.throwIfAborted();
         return result;
       } finally {
+        if (section === "git") terminal.section("end");
         input.setRawMode?.(wasRaw);
         readline.resume();
       }

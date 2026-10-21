@@ -28,6 +28,7 @@ function fixture(
   const terminal: Terminal = {
     show: (text) => output.push(text),
     header() {},
+    section() {},
     draft: (text) => {
       output.push(text);
     },

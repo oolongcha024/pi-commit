@@ -70,6 +70,19 @@ test("preview selects a single state and rejects unknown scenes or invalid width
   assert.equal((stdout.match(/^=== /gmu) ?? []).length, 1);
   assert.match(stdout, /使用旧稿提交/u);
   assert.match(stdout, /重试生成/u);
+  assert.ok(
+    stdout.indexOf("› 输入修改意见") < stdout.indexOf("y 使用旧稿提交"),
+  );
+  const { stdout: success } = await run(
+    "--scene",
+    "success",
+    "--static",
+    "--no-color",
+  );
+  assert.match(success, /pi-commit \/ \ue0a0 feat\/session-recovery/u);
+  assert.match(success, /── git ─/u);
+  assert.ok(success.indexOf("── git") < success.indexOf("[main a1b2c3d]"));
+  assert.match(success, /files changed[^\n]*\n\n─+\n✓ 提交完成/u);
   await assert.rejects(run("--scene", "not-a-scene"), /未知场景/u);
   await assert.rejects(run("--width", "NaN"), /--width/u);
 });

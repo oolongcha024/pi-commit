@@ -42,7 +42,7 @@ try:
                 break
             output += chunk
         visible = visible_text()
-        if phase == "draft" and "输入修改意见，或选择操作".encode() in visible:
+        if phase == "draft" and "输入修改意见".encode() in visible:
             os.write(master, b"y\n")
             phase = "password"
         if phase == "password" and output.count(b"Enter passphrase") > prompt_count:

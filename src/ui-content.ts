@@ -44,7 +44,7 @@ export function promptContent(state: PromptState): {
   switch (state.kind) {
     case "draft":
       return {
-        hint: "输入修改意见，或选择操作",
+        hint: "输入修改意见…",
         actions: [
           {
             key: "y",
@@ -56,7 +56,7 @@ export function promptContent(state: PromptState): {
             primary: true,
           },
           { key: "e", label: "编辑" },
-          { key: "r", label: state.requestFailed ? "重试生成" : "重新生成" },
+          { key: "r", label: state.requestFailed ? "重试生成" : "重写" },
           { key: "q", label: "退出" },
         ],
       };

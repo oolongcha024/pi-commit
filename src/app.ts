@@ -141,11 +141,11 @@ export async function runCommitLoop(options: LoopOptions): Promise<number> {
       continue;
     }
     if (command === "y") {
-      ui.notice("committing");
       const message = formatMessage(draft, options.emoji);
       const snapshot = expected;
-      const status = await terminal.withExternalCommand(() =>
-        git.commit(message, snapshot, options.noSign),
+      const status = await terminal.withExternalCommand(
+        () => git.commit(message, snapshot, options.noSign),
+        "git",
       );
       signal?.throwIfAborted();
       if (status === "committed") {

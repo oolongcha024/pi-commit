@@ -93,6 +93,9 @@ async function main() {
         draft: (message) => {
           write(view.draft(message));
         },
+        section: (edge) => {
+          write(view.section(edge));
+        },
         status: (message) => {
           write(`${view.status(message, 2300)}\n`);
           return () => {};
@@ -100,8 +103,8 @@ async function main() {
       });
       if (scene.prompt) {
         const { hint, actions } = promptContent(scene.prompt);
-        if (actions) write(`${view.actions(actions)}\n`);
         write(`${view.prompt()}${view.placeholder(hint)}\n`);
+        if (actions) write(`${view.actions(actions)}\n`);
       }
     };
     for (const scene of values.scene && !values.all

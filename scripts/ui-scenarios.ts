@@ -15,7 +15,10 @@ const header: TerminalHeader = {
 const draft =
   "🐛 fix(auth): 修复重连后的登录状态丢失\n\n- 重连成功后恢复会话状态\n- 补充状态恢复的回归测试";
 
-type PreviewTerminal = Pick<Terminal, "header" | "draft" | "show" | "status">;
+type PreviewTerminal = Pick<
+  Terminal,
+  "header" | "draft" | "show" | "status" | "section"
+>;
 export interface Scenario {
   id: string;
   label: string;
@@ -127,16 +130,22 @@ export const scenarios: Scenario[] = [
     },
     { kind: "draft" },
   ),
-  scene("committing", "提交与 hooks 执行中", (t, ui) => {
+  scene("committing", "提交与 hooks 执行中", (t) => {
     t.header(header);
     t.draft(draft);
-    ui.notice("committing");
+    t.section("start");
+    t.show("Running pre-commit checks...\n✔ lint passed\nRunning tests...");
   }),
   scene(
     "commit-error",
     "提交失败待重试",
     (t, ui) => {
       t.header(header);
+      t.section("start");
+      t.show(
+        "Running pre-commit checks...\n✖ lint failed\npre-commit hook exited with code 1",
+      );
+      t.section("end");
       ui.notice("commitFailed");
       t.draft(draft);
     },
@@ -148,6 +157,8 @@ export const scenarios: Scenario[] = [
     (t, ui) => {
       t.header(header);
       t.draft(draft);
+      t.section("start");
+      t.section("end");
       ui.notice("changed");
     },
     { kind: "changed" },
@@ -155,6 +166,11 @@ export const scenarios: Scenario[] = [
   scene("success", "提交成功", (t, ui) => {
     t.header(header);
     t.draft(draft);
+    t.section("start");
+    t.show(
+      "Running pre-commit checks...\n✔ lint passed\n✔ tests passed\n[main a1b2c3d] fix(auth): 修复重连后的登录状态丢失\n 3 files changed, 42 insertions(+), 18 deletions(-)",
+    );
+    t.section("end");
     ui.notice("committed");
   }),
   scene("no-draft", "模型未交付有效草稿", (t, ui) => {

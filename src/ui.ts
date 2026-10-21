@@ -1,19 +1,33 @@
 import { stripVTControlCharacters } from "node:util";
 import stringWidth from "string-width";
-import type { GitSummary } from "./git.js";
 
 export interface TerminalHeader {
   model: string;
   language: "zh" | "en";
   emoji: boolean;
   noSign?: boolean;
-  summary: GitSummary;
+  summary: {
+    branch: string;
+    files: number;
+    additions: number;
+    deletions: number;
+  };
 }
 
 export interface TerminalAction {
   key: string;
   label: string;
   primary?: boolean;
+}
+
+export interface Terminal {
+  show(text: string, tone?: NoticeTone): void;
+  header(info: TerminalHeader): void;
+  draft(message: string): void;
+  status(message: string): () => void;
+  withExternalCommand<T>(operation: () => Promise<T>): Promise<T>;
+  ask(prompt: string, actions?: TerminalAction[]): Promise<string>;
+  edit(message: string): Promise<string | undefined>;
 }
 
 type Tone = "dim" | "bold" | "cyan" | "green" | "yellow" | "red";
@@ -166,6 +180,22 @@ export class TerminalRenderer {
     }
     if (row) rows.push(`  ${row}`);
     return ["", ...rows, ""].join("\n");
+  }
+
+  status(message: string, elapsedMs = 0): string {
+    const frames = this.options.unicode
+      ? ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+      : ["|", "/", "-", "\\"];
+    const frame = frames[Math.floor(elapsedMs / 90) % frames.length];
+    return `  ${this.paint(this.fit(`${frame} ${message} ${Math.floor(elapsedMs / 1000)}s`), "cyan")}`;
+  }
+
+  prompt(): string {
+    return `  ${this.paint(this.options.unicode ? "›" : ">", "cyan")} `;
+  }
+
+  placeholder(hint: string): string {
+    return this.paint(this.fit(hint), "dim");
   }
 
   notice(text: string, tone?: NoticeTone): string {

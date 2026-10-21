@@ -5,6 +5,7 @@ import { runCommitLoop } from "./app.js";
 import { loadPreferences, preferencesPath, savePreferences } from "./config.js";
 import { GitRepository } from "./git.js";
 import { createTerminal } from "./terminal.js";
+import { createCommitUI } from "./ui-content.js";
 
 const HELP = `Usage: pi-commit [options] [修改背景...]
 
@@ -70,12 +71,13 @@ async function main(): Promise<number> {
     : (values.emoji ?? preferences.emoji ?? false);
   const controller = new AbortController();
   const terminal = createTerminal(controller);
+  const ui = createCommitUI(terminal);
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
   process.once("SIGTERM", abort);
   let agent: CommitAgent | undefined;
   try {
-    const stopLoading = terminal.status("正在加载模型配置…");
+    const stopLoading = ui.status("loading");
     let sdk: typeof import("./agent.js");
     let runtime: Awaited<ReturnType<typeof createModelRuntime>>;
     try {
@@ -99,18 +101,18 @@ async function main(): Promise<number> {
           "未找到有可用认证的 pi 模型。请在 pi 中 /login，或配置 provider 环境变量与 models.json。扩展动态注册的 provider 暂不支持。",
         );
       }
-      terminal.show("选择默认模型：");
+      ui.notice("selectModel");
       available.forEach((model, index) => {
         terminal.show(`${index + 1}. ${model.provider}/${model.id}`);
       });
       while (!modelId) {
-        const input = (await terminal.ask("输入模型编号，或 q 退出")).trim();
+        const input = (await ui.ask({ kind: "model" })).trim();
         if (input.toLowerCase() === "q") return 0;
         const selected = /^\d+$/u.test(input)
           ? available[Number(input) - 1]
           : undefined;
         if (!selected) {
-          terminal.show("请输入列表中的模型编号。");
+          ui.notice("invalidModel");
           continue;
         }
         modelId = `${selected.provider}/${selected.id}`;
@@ -139,7 +141,7 @@ async function main(): Promise<number> {
     });
   } catch (error) {
     if (controller.signal.aborted) {
-      terminal.show("已取消。", "info");
+      ui.notice("cancelled");
       return 130;
     }
     throw error;

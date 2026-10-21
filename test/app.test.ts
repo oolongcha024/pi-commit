@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CommitAgent, TurnResult } from "../src/agent.js";
-import { type LoopOptions, runCommitLoop, type Terminal } from "../src/app.js";
+import { type LoopOptions, runCommitLoop } from "../src/app.js";
 import type { GitSnapshot } from "../src/git.js";
+import type { Terminal } from "../src/ui.js";
 
 function fixture(
   turns: (TurnResult | Error)[],

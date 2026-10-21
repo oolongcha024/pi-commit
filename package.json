@@ -19,6 +19,8 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "tsx src/cli.ts",
+    "ui": "tsx scripts/ui-preview.ts",
+    "ui:watch": "tsx watch scripts/ui-preview.ts --all",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

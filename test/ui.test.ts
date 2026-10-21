@@ -72,3 +72,27 @@ test("plain output omits ANSI styling and retains real message content", () => {
   assert.match(text, /---/);
   assert.match(text, /提交完成/);
 });
+
+test("loading frames and input prompts share plain and colored rendering", () => {
+  const plain = new TerminalRenderer({
+    columns: 32,
+    color: false,
+    unicode: false,
+  });
+  assert.match(plain.status("Generating", 2300), /Generating 2s/u);
+  assert.equal(plain.prompt(), "  > ");
+  assert.equal(
+    stripVTControlCharacters(plain.status("Generating")),
+    plain.status("Generating"),
+  );
+  const color = new TerminalRenderer({
+    columns: 32,
+    color: true,
+    unicode: true,
+  });
+  const status = color.status("正在根据反馈修改非常长的提交消息", 900);
+  assert.ok(stringWidth(status) <= 32);
+  assert.notEqual(status, stripVTControlCharacters(status));
+  assert.notEqual(color.status("生成中", 0), color.status("生成中", 90));
+  assert.equal(stripVTControlCharacters(color.prompt()), "  › ");
+});

@@ -5,11 +5,12 @@ import { join } from "node:path";
 import { clearLine, moveCursor } from "node:readline";
 import { createInterface } from "node:readline/promises";
 import stringWidth from "string-width";
-import type { Terminal } from "./app.js";
-import { TerminalRenderer } from "./ui.js";
+import { type Terminal, TerminalRenderer } from "./ui.js";
+import { createCommitUI } from "./ui-content.js";
 
 export function createTerminal(
   controller: AbortController,
+  options: { columns?: number; color?: boolean; unicode?: boolean } = {},
 ): Terminal & { close(): void } {
   const output = process.stdout;
   const input = process.stdin;
@@ -20,9 +21,9 @@ export function createTerminal(
     process.env.FORCE_COLOR !== "0";
   const view = () =>
     new TerminalRenderer({
-      columns: output.columns || 80,
-      color,
-      unicode: process.env.TERM !== "dumb",
+      columns: options.columns ?? (output.columns || 80),
+      color: options.color ?? color,
+      unicode: options.unicode ?? process.env.TERM !== "dumb",
     });
   const readline = createInterface({ input, output });
   let closed = false;
@@ -55,15 +56,11 @@ export function createTerminal(
       readline.pause();
       input.setRawMode?.(false);
       const start = Date.now();
-      const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-      let index = 0;
       let stopped = false;
       output.write("\u001b[?25l");
       const draw = () => {
         clearLine(output, 0);
-        output.write(
-          `\r  ${view().paint(view().fit(`${frames[index++ % frames.length]} ${message} ${Math.floor((Date.now() - start) / 1000)}s`), "cyan")}`,
-        );
+        output.write(`\r${view().status(message, Date.now() - start)}`);
       };
       draw();
       const timer = setInterval(draw, 90);
@@ -83,14 +80,14 @@ export function createTerminal(
       controller.signal.throwIfAborted();
       if (actions) output.write(`${view().actions(actions)}\n`);
       if (!dynamic) output.write(`${view().notice(hint)}\n`);
-      const prompt = `  ${view().paint(dynamic ? "›" : ">", "cyan")} `;
+      const prompt = view().prompt();
       const question = readline.question(prompt, { signal: controller.signal });
       const clearHint = () => {
         clearLine(output, 1);
       };
       if (dynamic) {
         const placeholder = view().fit(hint);
-        output.write(view().paint(placeholder, "dim"));
+        output.write(view().placeholder(hint));
         moveCursor(output, -stringWidth(placeholder), 0);
         input.once("keypress", clearHint);
       }
@@ -121,10 +118,7 @@ export function createTerminal(
       stopStatus();
       const editor = process.env.VISUAL?.trim() || process.env.EDITOR?.trim();
       if (!editor) {
-        terminal.show(
-          "请先配置 $VISUAL 或 $EDITOR（例如 export EDITOR='code --wait'）。",
-          "warning",
-        );
+        createCommitUI(terminal).notice("missingEditor");
         return undefined;
       }
       const directory = await mkdtemp(join(tmpdir(), "pi-commit-"));
@@ -144,7 +138,7 @@ export function createTerminal(
             }),
         );
         if (code !== 0) {
-          terminal.show("编辑器退出失败，保留上一版草稿。", "warning");
+          createCommitUI(terminal).notice("editorFailed");
           return undefined;
         }
         return await readFile(path, "utf8");

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
-import type { CommitAgent, createModelRuntime } from "./agent.js";
+import { AgentClient } from "./agent-client.js";
 import { runCommitLoop } from "./app.js";
 import { loadPreferences, preferencesPath, savePreferences } from "./config.js";
 import { GitRepository } from "./git.js";
@@ -75,32 +75,21 @@ async function main(): Promise<number> {
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
   process.once("SIGTERM", abort);
-  let agent: CommitAgent | undefined;
+  const engine = new AgentClient(controller.signal);
+  let stopLoading = () => {};
   try {
-    const stopLoading = ui.status("loading");
-    let sdk: typeof import("./agent.js");
-    let runtime: Awaited<ReturnType<typeof createModelRuntime>>;
-    try {
-      sdk = await import("./agent.js");
-      controller.signal.throwIfAborted();
-      runtime = await sdk.createModelRuntime(
-        values["agent-dir"],
-        controller.signal,
-      );
-    } finally {
-      stopLoading();
-    }
+    stopLoading = ui.status("loading");
+    await engine.initialize(values["agent-dir"]);
     controller.signal.throwIfAborted();
     let modelId = values.model ?? preferences.model;
     if (!modelId) {
-      const available = await runtime.getAvailable(undefined, {
-        signal: controller.signal,
-      });
+      const available = await engine.models();
       if (!available.length) {
         throw new Error(
           "未找到有可用认证的 pi 模型。请在 pi 中 /login，或配置 provider 环境变量与 models.json。扩展动态注册的 provider 暂不支持。",
         );
       }
+      stopLoading();
       ui.notice("selectModel");
       available.forEach((model, index) => {
         terminal.show(`${index + 1}. ${model.provider}/${model.id}`);
@@ -118,16 +107,15 @@ async function main(): Promise<number> {
         modelId = `${selected.provider}/${selected.id}`;
       }
       await savePreferences({ ...preferences, model: modelId });
+      stopLoading = ui.status("loading");
     }
-    agent = await sdk.createCommitAgent({
+    const agent = await engine.createAgent({
       cwd: git.root,
-      runtime,
       modelId,
       language,
       emoji,
-      agentDir: values["agent-dir"],
-      signal: controller.signal,
     });
+    stopLoading();
     return await runCommitLoop({
       agent,
       git,
@@ -146,7 +134,8 @@ async function main(): Promise<number> {
     }
     throw error;
   } finally {
-    agent?.dispose();
+    stopLoading();
+    await engine.close();
     process.removeListener("SIGINT", abort);
     process.removeListener("SIGTERM", abort);
     terminal.close();

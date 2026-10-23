@@ -52,7 +52,7 @@ function scene(
 }
 
 export const scenarios: Scenario[] = [
-  scene("loading", "加载模型配置", (_t, ui) => ui.status("loading")),
+  scene("loading", "初始化模型", (_t, ui) => ui.status("loading")),
   scene(
     "model",
     "首次选择模型",

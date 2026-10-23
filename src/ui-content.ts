@@ -28,7 +28,7 @@ export const notices = {
 } satisfies Record<string, { text: string; tone?: NoticeTone }>;
 
 export const statuses = {
-  loading: "正在加载模型配置…",
+  loading: "正在初始化模型…",
   generating: "正在生成提交消息…",
   revising: "正在根据反馈修改…",
 };

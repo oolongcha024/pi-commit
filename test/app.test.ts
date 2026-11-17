@@ -29,6 +29,7 @@ function fixture(
     show: (text) => output.push(text),
     header() {},
     section() {},
+    divider() {},
     draft: (text) => {
       output.push(text);
     },

@@ -24,6 +24,7 @@ export interface Terminal {
   show(text: string, tone?: NoticeTone): void;
   header(info: TerminalHeader): void;
   draft(message: string): void;
+  divider(): void;
   status(message: string): () => void;
   section(edge: "start" | "end"): void;
   withExternalCommand<T>(
@@ -142,6 +143,11 @@ export class TerminalRenderer {
         : `${this.paint(subject.slice(0, separator + 1), "cyan")} ${this.paint(subject.slice(separator + 2), "bold")}`;
     // Presentation never adds whitespace to the message itself.
     return [title, ...body, "", ""].join("\n");
+  }
+
+  divider(): string {
+    const dash = this.options.unicode ? "─" : "-";
+    return `\n${this.paint(dash.repeat(this.width), "dim")}\n\n`;
   }
 
   actions(actions: TerminalAction[]): string {

@@ -51,6 +51,10 @@ export function createTerminal(
       stopStatus();
       output.write(view().draft(message));
     },
+    divider() {
+      stopStatus();
+      output.write(view().divider());
+    },
     section(edge) {
       stopStatus();
       output.write(view().section(edge));

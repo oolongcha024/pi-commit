@@ -93,6 +93,9 @@ async function main() {
         draft: (message) => {
           write(view.draft(message));
         },
+        divider: () => {
+          write(view.divider());
+        },
         section: (edge) => {
           write(view.section(edge));
         },

@@ -38,7 +38,7 @@ test("offline preview renders all states outside a repository without configurat
     },
   );
   assert.equal(stripVTControlCharacters(stdout), stdout);
-  assert.equal((stdout.match(/^=== /gmu) ?? []).length, 20);
+  assert.equal((stdout.match(/^=== /gmu) ?? []).length, 21);
   for (const expected of [
     "正在生成提交消息",
     "使用旧稿提交",

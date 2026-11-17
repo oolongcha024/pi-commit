@@ -43,6 +43,7 @@ export async function runCommitLoop(options: LoopOptions): Promise<number> {
         return 0;
       }
       const snapshot = await git.snapshot();
+      if (draft) terminal.divider();
       if (
         !shownSnapshot ||
         shownSnapshot.head !== snapshot.head ||

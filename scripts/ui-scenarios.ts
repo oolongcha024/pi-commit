@@ -14,10 +14,13 @@ const header: TerminalHeader = {
 };
 const draft =
   "🐛 fix(auth): 修复重连后的登录状态丢失\n\n- 重连成功后恢复会话状态\n- 补充状态恢复的回归测试";
+const feedback = "> 标题再具体一点，突出断线重连";
+const revisedDraft =
+  "🐛 fix(auth): 修复断线重连后的登录状态丢失\n\n- 重连成功后恢复会话状态\n- 补充状态恢复的回归测试";
 
 type PreviewTerminal = Pick<
   Terminal,
-  "header" | "draft" | "show" | "status" | "section"
+  "header" | "draft" | "divider" | "show" | "status" | "section"
 >;
 export interface Scenario {
   id: string;
@@ -78,8 +81,22 @@ export const scenarios: Scenario[] = [
   scene("revising", "根据反馈改稿", (t, ui) => {
     t.header(header);
     t.draft(draft);
+    t.show(feedback);
+    t.divider();
     return ui.status("revising");
   }),
+  scene(
+    "revised",
+    "改稿完成待确认",
+    (t) => {
+      t.header(header);
+      t.draft(draft);
+      t.show(feedback);
+      t.divider();
+      t.draft(revisedDraft);
+    },
+    { kind: "draft" },
+  ),
   scene(
     "request-error",
     "首次请求失败",
